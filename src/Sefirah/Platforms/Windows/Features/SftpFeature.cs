@@ -23,6 +23,8 @@ public class SftpFeature(
         return Task.CompletedTask;
     }
 
+    public Task EnsurePrerequisitesAsync() => Task.CompletedTask;
+
     private IEnumerable<SyncRootInfo> GetSyncRootsForDevice(string deviceId)
         => registrar.GetSyncRoots().Where(r => r.Id.Contains($"!{deviceId}_"));
 

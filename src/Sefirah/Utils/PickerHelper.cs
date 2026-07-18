@@ -77,8 +77,10 @@ public static class PickerHelper
 
     public static void InitializePicker(object picker)
     {
+#if WINDOWS
         var window = App.MainWindow;
         WinRT.Interop.InitializeWithWindow.Initialize(picker,
             WinRT.Interop.WindowNative.GetWindowHandle(window));
+#endif
     }
 }

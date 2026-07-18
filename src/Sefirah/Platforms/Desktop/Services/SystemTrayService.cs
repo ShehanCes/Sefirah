@@ -1,3 +1,4 @@
+using System.Runtime.Versioning;
 using Sefirah.Data.Contracts;
 using Sefirah.Platforms.Desktop.Tray;
 using Sefirah.Platforms.Desktop.Tray.DBus;
@@ -6,7 +7,7 @@ using Tmds.DBus.Protocol;
 namespace Sefirah.Platforms.Desktop.Services;
 
 /// <summary>
-/// Linux system tray using the StatusNotifierItem D-Bus protocol.
+/// Desktop system tray: StatusNotifierItem on Linux, NSStatusItem on macOS.
 /// </summary>
 public sealed class SystemTrayService : ISystemTrayService
 {
@@ -18,6 +19,7 @@ public sealed class SystemTrayService : ISystemTrayService
     private DBusConnection? connection;
     private LinuxStatusNotifierItemHandler? itemHandler;
     private LinuxTrayMenuHandler? menuHandler;
+    private MacOsStatusItem? macOsStatusItem;
     private string? serviceName;
     private bool disposed;
 
@@ -25,13 +27,59 @@ public sealed class SystemTrayService : ISystemTrayService
     {
         this.logger = logger;
 
-        if (OperatingSystem.IsLinux())
-            _ = InitializeAsync();
+        if (OperatingSystem.IsMacOS())
+            InitializeMacOs();
+        else if (OperatingSystem.IsLinux())
+            _ = InitializeLinuxAsync();
     }
 
     public bool IsAvailable { get; private set; }
 
-    private async Task InitializeAsync()
+    [SupportedOSPlatform("macos")]
+    private void InitializeMacOs()
+    {
+        try
+        {
+            var iconPath = ResolveTrayIconPath();
+            macOsStatusItem = MacOsStatusItem.TryCreate(
+                title: "Sf",
+                tooltip: "Sefirah",
+                iconPath: iconPath,
+                items:
+                [
+                    ("StartScreenMirroring".GetLocalizedResource(), App.TrayStartScrcpy),
+                    ("ShowHideWindow".GetLocalizedResource(), App.TrayToggleWindow),
+                    (string.Empty, null),
+                    ("Exit".GetLocalizedResource(), App.TrayExitApplication),
+                ],
+                logger);
+
+            IsAvailable = macOsStatusItem is not null;
+            if (IsAvailable)
+                logger.Info("macOS menu bar status item registered");
+        }
+        catch (Exception ex)
+        {
+            logger.Warn("Failed to initialize macOS system tray", ex);
+            IsAvailable = false;
+        }
+    }
+
+    private static string? ResolveTrayIconPath()
+    {
+        var baseDir = AppContext.BaseDirectory;
+        string[] candidates =
+        [
+            Path.Combine(baseDir, "Assets", "Icons", "tray.png"),
+            Path.Combine(baseDir, "Assets.xcassets", "icon.appiconset", "icon32x32@2x.png"),
+            Path.Combine(baseDir, "Assets.xcassets", "icon.appiconset", "icon32x32@1x.png"),
+            Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "..", "..", "dist", "icons", "32x32", "com.castle.sefirah.png")),
+        ];
+
+        return candidates.FirstOrDefault(File.Exists);
+    }
+
+    private async Task InitializeLinuxAsync()
     {
         try
         {
@@ -149,6 +197,12 @@ public sealed class SystemTrayService : ISystemTrayService
 
         disposed = true;
         IsAvailable = false;
+
+        if (OperatingSystem.IsMacOS())
+        {
+            macOsStatusItem?.Dispose();
+            macOsStatusItem = null;
+        }
 
         if (connection is not null)
         {

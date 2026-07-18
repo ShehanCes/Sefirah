@@ -63,7 +63,7 @@
     </PropertyGroup>
 
     <PropertyGroup>
-        <UnoIconForegroundFile>Assets\Icons\icon_foreground.svg</UnoIconForegroundFile>
+        <UnoIconForegroundFile>Assets/Icons/icon_foreground.svg</UnoIconForegroundFile>
         <UnoIconBackgroundColor Condition="'$(IsWinAppSdk)' == 'true'">Transparent</UnoIconBackgroundColor>
         <GenerateTestArtifacts>False</GenerateTestArtifacts>
         <AppxPackageSigningEnabled>False</AppxPackageSigningEnabled>
@@ -105,14 +105,36 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Content Include="Assets\Icons\IconResource.dll">
+        <Content Include="Assets/Icons/IconResource.dll">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
-        <Content Include="Assets\Icons\SefirahDark.ico">
+        <Content Include="Assets/Icons/SefirahDark.ico">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
-        <Content Include="Assets\Icons\SefirahLight.ico">
+        <Content Include="Assets/Icons/SefirahLight.ico">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Assets/Icons/tray.png">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+    </ItemGroup>
+
+    <!-- Build & copy macOS native helper (UserNotifications / NSWindow) for Desktop TFM. -->
+    <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0-desktop' and $([MSBuild]::IsOSPlatform('OSX'))">
+        <SefirahNativeMacOsDir>$(MSBuildThisFileDirectory)../../native/macos</SefirahNativeMacOsDir>
+        <SefirahNativeMacOsDylib>$(SefirahNativeMacOsDir)/libsefirah_macos.dylib</SefirahNativeMacOsDylib>
+    </PropertyGroup>
+    <Target Name="BuildSefirahMacOsNative"
+            BeforeTargets="BeforeBuild"
+            Condition="'$(TargetFramework)' == 'net10.0-desktop' and $([MSBuild]::IsOSPlatform('OSX'))">
+        <MakeDir Directories="$(SefirahNativeMacOsDir)" />
+        <Exec Command="clang -dynamiclib -fobjc-arc -O2 -framework Foundation -framework UserNotifications -framework AppKit -framework CoreAudio -install_name @rpath/libsefirah_macos.dylib -o &quot;$(SefirahNativeMacOsDylib)&quot; &quot;$(SefirahNativeMacOsDir)/sefirah_macos.m&quot;" />
+    </Target>
+    <ItemGroup Condition="'$(TargetFramework)' == 'net10.0-desktop' and $([MSBuild]::IsOSPlatform('OSX'))">
+        <Content Include="$(MSBuildThisFileDirectory)../../native/macos/libsefirah_macos.dylib" Condition="Exists('$(MSBuildThisFileDirectory)../../native/macos/libsefirah_macos.dylib')">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <Link>libsefirah_macos.dylib</Link>
+            <Visible>false</Visible>
         </Content>
     </ItemGroup>
     <ItemGroup>
@@ -142,7 +164,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <UnoSplashScreen Update="Assets\Splash\splash_screen.svg">
+        <UnoSplashScreen Update="Assets/Splash/splash_screen.svg">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </UnoSplashScreen>
     </ItemGroup>

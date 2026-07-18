@@ -82,7 +82,7 @@ public sealed partial class GeneralPage : Page
         if (file?.Path is string path)
         {
             ViewModel.ScrcpyPath = path;
-            TrySetCompanionTool(path, "adb.exe", p => ViewModel.AdbPath = p);
+            ExternalToolLocator.TrySetAdbCompanion(path, p => ViewModel.AdbPath = p);
         }
     }
 
@@ -92,20 +92,50 @@ public sealed partial class GeneralPage : Page
         if (file?.Path is string path)
         {
             ViewModel.AdbPath = path;
-            TrySetCompanionTool(path, "scrcpy.exe", p => ViewModel.ScrcpyPath = p);
+            ExternalToolLocator.TrySetScrcpyCompanion(path, p => ViewModel.ScrcpyPath = p);
         }
     }
 
-    public static void TrySetCompanionTool(string selectedPath, string companionName, Action<string> setPath)
+    private async void FindScrcpyLocation_Click(object sender, RoutedEventArgs e)
     {
-        var directory = Path.GetDirectoryName(selectedPath);
-        if (string.IsNullOrEmpty(directory)) return;
-
-        var companionPath = Path.GetFullPath(Path.Combine(directory, companionName));
-        if (File.Exists(companionPath))
+        var path = ExternalToolLocator.FindScrcpy();
+        if (path is null)
         {
-            setPath(companionPath);
+            await ShowToolNotFoundDialogAsync(
+                "ScrcpyNotFound".GetLocalizedResource(),
+                "ScrcpyFindFailedDescription".GetLocalizedResource());
+            return;
         }
+
+        ViewModel.ScrcpyPath = path;
+        ExternalToolLocator.TrySetAdbCompanion(path, p => ViewModel.AdbPath = p);
+    }
+
+    private async void FindAdbLocation_Click(object sender, RoutedEventArgs e)
+    {
+        var path = ExternalToolLocator.FindAdb();
+        if (path is null)
+        {
+            await ShowToolNotFoundDialogAsync(
+                "AdbNotFound".GetLocalizedResource(),
+                "AdbFindFailedDescription".GetLocalizedResource());
+            return;
+        }
+
+        ViewModel.AdbPath = path;
+        ExternalToolLocator.TrySetScrcpyCompanion(path, p => ViewModel.ScrcpyPath = p);
+    }
+
+    private static async Task ShowToolNotFoundDialogAsync(string title, string content)
+    {
+        var dialog = new ContentDialog
+        {
+            Title = title,
+            Content = content,
+            CloseButtonText = "Dismiss".GetLocalizedResource(),
+            XamlRoot = App.MainWindow.Content!.XamlRoot
+        };
+        await dialog.ShowAsync();
     }
 
     private void OpenActionsSettings(object sender, RoutedEventArgs e)

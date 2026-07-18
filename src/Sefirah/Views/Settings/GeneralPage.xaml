@@ -90,7 +90,10 @@
                 <wuc:SettingsCard.HeaderIcon>
                     <FontIcon Glyph="&#xEC15;" />
                 </wuc:SettingsCard.HeaderIcon>
-                <Button Click="SelectScrcpyLocation_Click" Content="{helpers:ResourceString Name=SelectLocation}" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Click="FindScrcpyLocation_Click" Content="{helpers:ResourceString Name=FindAutomatically}" />
+                    <Button Click="SelectScrcpyLocation_Click" Content="{helpers:ResourceString Name=SelectLocation}" />
+                </StackPanel>
             </wuc:SettingsCard>
 
             <!--  Adb Settings  -->
@@ -98,7 +101,10 @@
                 <wuc:SettingsCard.HeaderIcon>
                     <FontIcon Glyph="&#xEC7A;" />
                 </wuc:SettingsCard.HeaderIcon>
-                <Button Click="SelectAdbLocation_Click" Content="{helpers:ResourceString Name=SelectLocation}" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Click="FindAdbLocation_Click" Content="{helpers:ResourceString Name=FindAutomatically}" />
+                    <Button Click="SelectAdbLocation_Click" Content="{helpers:ResourceString Name=SelectLocation}" />
+                </StackPanel>
             </wuc:SettingsCard>
 
             <!--  Save Location  -->

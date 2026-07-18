@@ -9,46 +9,88 @@ public sealed class MediaFeature(
     ISessionManager sessionManager,
     IDeviceManager deviceManager) : IMediaFeature, IAsyncDisposable
 {
-    private readonly PulseAudioClient pulseAudioClient = new(loggerFactory.CreateLogger<PulseAudioClient>());
+    private readonly PulseAudioClient? pulseAudioClient =
+        OperatingSystem.IsLinux() ? new PulseAudioClient(loggerFactory.CreateLogger<PulseAudioClient>()) : null;
+    private readonly MacOsAudioClient? macOsAudioClient =
+        OperatingSystem.IsMacOS() ? new MacOsAudioClient(loggerFactory.CreateLogger<MacOsAudioClient>()) : null;
+
     private readonly Dictionary<string, PulseAudioSink> knownSinks = new(StringComparer.Ordinal);
     private readonly Lock knownSinksSyncRoot = new();
 
-    public async Task InitializeAsync()
+    private bool IsAudioAvailable =>
+        pulseAudioClient?.IsAvailable == true || macOsAudioClient?.IsAvailable == true;
+
+    public Task InitializeAsync()
     {
         try
         {
-            pulseAudioClient.Initialize();
-            if (!pulseAudioClient.IsAvailable)
-                return;
+            if (pulseAudioClient is not null)
+            {
+                pulseAudioClient.Initialize();
+                if (!pulseAudioClient.IsAvailable)
+                    return Task.CompletedTask;
 
-            logger.Info("PulseAudio system volume sync initialized");
-            SyncAudioDevicesToConnectedPeers();
+                logger.Info("PulseAudio system volume sync initialized");
+                SyncAudioDevicesToConnectedPeers();
+                pulseAudioClient.SinksChanged += OnSinksChanged;
+                pulseAudioClient.SinkRemoved += OnSinkRemoved;
+            }
+            else if (macOsAudioClient is not null)
+            {
+                macOsAudioClient.Initialize();
+                if (!macOsAudioClient.IsAvailable)
+                    return Task.CompletedTask;
 
-            pulseAudioClient.SinksChanged += OnPulseSinksChanged;
-            pulseAudioClient.SinkRemoved += OnPulseSinkRemoved;
+                SyncAudioDevicesToConnectedPeers();
+                macOsAudioClient.SinksChanged += OnSinksChanged;
+                macOsAudioClient.SinkRemoved += OnSinkRemoved;
+            }
+            else
+            {
+                return Task.CompletedTask;
+            }
+
             sessionManager.ConnectionStatusChanged += OnConnectionStatusChanged;
         }
         catch (Exception ex)
         {
-            logger.Warn("Failed to initialize PulseAudio system volume sync", ex);
+            logger.Warn("Failed to initialize system volume sync", ex);
         }
+
+        return Task.CompletedTask;
     }
 
     public Task HandleMediaActionAsync(MediaAction mediaAction)
     {
-        switch (mediaAction.ActionType)
+        if (pulseAudioClient is { IsAvailable: true })
         {
-            case MediaActionType.DefaultDevice:
-                pulseAudioClient.SetDefaultSink(mediaAction.Source);
-                break;
-            case MediaActionType.VolumeUpdate when mediaAction.Value.HasValue:
-                pulseAudioClient.SetVolume(
-                    mediaAction.Source,
-                    Convert.ToSingle(mediaAction.Value.Value));
-                break;
-            case MediaActionType.ToggleMute:
-                pulseAudioClient.ToggleMute(mediaAction.Source);
-                break;
+            switch (mediaAction.ActionType)
+            {
+                case MediaActionType.DefaultDevice:
+                    pulseAudioClient.SetDefaultSink(mediaAction.Source);
+                    break;
+                case MediaActionType.VolumeUpdate when mediaAction.Value.HasValue:
+                    pulseAudioClient.SetVolume(mediaAction.Source, Convert.ToSingle(mediaAction.Value.Value));
+                    break;
+                case MediaActionType.ToggleMute:
+                    pulseAudioClient.ToggleMute(mediaAction.Source);
+                    break;
+            }
+        }
+        else if (macOsAudioClient is { IsAvailable: true })
+        {
+            switch (mediaAction.ActionType)
+            {
+                case MediaActionType.DefaultDevice:
+                    macOsAudioClient.SetDefaultSink(mediaAction.Source);
+                    break;
+                case MediaActionType.VolumeUpdate when mediaAction.Value.HasValue:
+                    macOsAudioClient.SetVolume(mediaAction.Source, Convert.ToSingle(mediaAction.Value.Value));
+                    break;
+                case MediaActionType.ToggleMute:
+                    macOsAudioClient.ToggleMute(mediaAction.Source);
+                    break;
+            }
         }
 
         return Task.CompletedTask;
@@ -59,16 +101,16 @@ public sealed class MediaFeature(
         if (!device.IsConnected || !device.DeviceSettings.AudioSync)
             return;
 
-        if (!pulseAudioClient.IsAvailable)
+        if (!IsAudioAvailable)
         {
-            logger.Warn("Audio sync is enabled for this device but PulseAudio is unavailable on this machine.");
+            logger.Warn("Audio sync is enabled for this device but system audio is unavailable on this machine.");
             return;
         }
 
         SyncAudioDevicesToDevice(device);
     }
 
-    private void OnPulseSinksChanged(IReadOnlyList<PulseAudioSink> sinks)
+    private void OnSinksChanged(IReadOnlyList<PulseAudioSink> sinks)
     {
         foreach (var sink in sinks)
         {
@@ -87,7 +129,7 @@ public sealed class MediaFeature(
         }
     }
 
-    private void OnPulseSinkRemoved(string sinkName)
+    private void OnSinkRemoved(string sinkName)
     {
         lock (knownSinksSyncRoot)
             knownSinks.Remove(sinkName);
@@ -107,10 +149,10 @@ public sealed class MediaFeature(
 
     private void SyncAudioDevicesToDevice(PairedDevice device)
     {
-        if (!device.IsConnected || !device.DeviceSettings.AudioSync || !pulseAudioClient.IsAvailable)
+        if (!device.IsConnected || !device.DeviceSettings.AudioSync || !IsAudioAvailable)
             return;
 
-        var sinks = pulseAudioClient.GetCurrentSinks();
+        var sinks = GetCurrentSinks();
         logger.Info($"Syncing {sinks.Count} audio device(s) to {device.Name}");
         foreach (var sink in sinks)
         {
@@ -118,6 +160,15 @@ public sealed class MediaFeature(
             lock (knownSinksSyncRoot)
                 knownSinks[sink.Name] = sink;
         }
+    }
+
+    private IReadOnlyList<PulseAudioSink> GetCurrentSinks()
+    {
+        if (pulseAudioClient is { IsAvailable: true })
+            return pulseAudioClient.GetCurrentSinks();
+        if (macOsAudioClient is { IsAvailable: true })
+            return macOsAudioClient.GetCurrentSinks();
+        return [];
     }
 
     private static bool HasSinkStateChanged(PulseAudioSink previous, PulseAudioSink current) =>
@@ -131,7 +182,7 @@ public sealed class MediaFeature(
         {
             foreach (var device in deviceManager.PairedDevices)
             {
-                if (device.IsConnected && device.DeviceSettings.AudioSync && pulseAudioClient.IsAvailable)
+                if (device.IsConnected && device.DeviceSettings.AudioSync && IsAudioAvailable)
                     device.SendMessage(audioDevice);
             }
         }
@@ -144,8 +195,19 @@ public sealed class MediaFeature(
     public async ValueTask DisposeAsync()
     {
         sessionManager.ConnectionStatusChanged -= OnConnectionStatusChanged;
-        pulseAudioClient.SinksChanged -= OnPulseSinksChanged;
-        pulseAudioClient.SinkRemoved -= OnPulseSinkRemoved;
-        await pulseAudioClient.DisposeAsync().ConfigureAwait(false);
+
+        if (pulseAudioClient is not null)
+        {
+            pulseAudioClient.SinksChanged -= OnSinksChanged;
+            pulseAudioClient.SinkRemoved -= OnSinkRemoved;
+            await pulseAudioClient.DisposeAsync().ConfigureAwait(false);
+        }
+
+        if (macOsAudioClient is not null)
+        {
+            macOsAudioClient.SinksChanged -= OnSinksChanged;
+            macOsAudioClient.SinkRemoved -= OnSinkRemoved;
+            await macOsAudioClient.DisposeAsync().ConfigureAwait(false);
+        }
     }
 }

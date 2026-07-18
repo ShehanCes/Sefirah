@@ -9,6 +9,7 @@ using AdvancedSharpAdbClient.Receivers;
 using CommunityToolkit.WinUI;
 using Sefirah.Data.Items;
 using Sefirah.Data.Models;
+using Sefirah.Utils;
 
 namespace Sefirah.Services;
 
@@ -100,8 +101,21 @@ public class AdbService(
     {
         try
         {
-            var adbPath = userSettingsService.GeneralSettingsService.AdbPath;
+            var configuredPath = userSettingsService.GeneralSettingsService.AdbPath;
+            var adbPath = ExternalToolLocator.ResolveAdbPath(configuredPath);
             if (IsMonitoring || string.IsNullOrEmpty(adbPath)) return;
+
+            if (adbPath != configuredPath)
+            {
+                userSettingsService.GeneralSettingsService.AdbPath = adbPath;
+                ExternalToolLocator.TrySetScrcpyCompanion(adbPath, p =>
+                    userSettingsService.GeneralSettingsService.ScrcpyPath = p);
+            }
+
+            var configuredScrcpy = userSettingsService.GeneralSettingsService.ScrcpyPath;
+            var resolvedScrcpy = ExternalToolLocator.ResolveScrcpyPath(configuredScrcpy);
+            if (!string.IsNullOrEmpty(resolvedScrcpy) && resolvedScrcpy != configuredScrcpy)
+                userSettingsService.GeneralSettingsService.ScrcpyPath = resolvedScrcpy;
 
             cts = new CancellationTokenSource();
 
@@ -408,12 +422,15 @@ public class AdbService(
             if (device.DeviceData is null) return;
 
             // Check if scrcpy is configured
-            var scrcpyPath = userSettingsService.GeneralSettingsService.ScrcpyPath;
+            var scrcpyPath = ExternalToolLocator.ResolveScrcpyPath(userSettingsService.GeneralSettingsService.ScrcpyPath);
             if (string.IsNullOrEmpty(scrcpyPath) || !File.Exists(scrcpyPath))
             {
                 logger.Info("Scrcpy path not configured or not found, skipping codec discovery");
                 return;
             }
+
+            if (scrcpyPath != userSettingsService.GeneralSettingsService.ScrcpyPath)
+                userSettingsService.GeneralSettingsService.ScrcpyPath = scrcpyPath;
 
             var deviceModel = device.Model ?? "Unknown";
 
@@ -741,12 +758,15 @@ public class AdbService(
     {
         try
         {
-            string adbPath = userSettingsService.GeneralSettingsService.AdbPath;
+            string adbPath = ExternalToolLocator.ResolveAdbPath(userSettingsService.GeneralSettingsService.AdbPath);
             if (string.IsNullOrEmpty(adbPath))
             {
                 logger.Error("ADB path not configured");
                 return false;
             }
+
+            if (adbPath != userSettingsService.GeneralSettingsService.AdbPath)
+                userSettingsService.GeneralSettingsService.AdbPath = adbPath;
 
             logger.Info($"Enabling TCP/IP mode using ADB at: {adbPath}");
             

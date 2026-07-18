@@ -664,6 +664,24 @@ public sealed partial class DeviceSettingsViewModel : BaseViewModel
 
     #region Storage Access Settings
 
+    public string StorageAccessHeader => OperatingSystem.IsMacOS()
+        ? LocalizedOr("StorageAccessMac", "Show device in Finder")
+        : OperatingSystem.IsLinux()
+            ? LocalizedOr("StorageAccessLinux", "Show device in Files")
+            : "StorageAccess".GetLocalizedResource();
+
+    public string StorageAccessDescriptionText => OperatingSystem.IsMacOS()
+        ? LocalizedOr("StorageAccessDescriptionMac", "Enables or disables storage access for this device in Finder (requires macFUSE and sshfs)")
+        : OperatingSystem.IsLinux()
+            ? LocalizedOr("StorageAccessDescriptionLinux", "Enables or disables storage access for this device in your file manager")
+            : "StorageAccessDescription".GetLocalizedResource();
+
+    private static string LocalizedOr(string key, string fallback)
+    {
+        var value = key.GetLocalizedResource();
+        return string.IsNullOrEmpty(value) || value == key ? fallback : value;
+    }
+
     public bool StorageAccess
     {
         get => DeviceSettings.StorageAccess;
@@ -674,10 +692,15 @@ public sealed partial class DeviceSettingsViewModel : BaseViewModel
                 DeviceSettings.StorageAccess = value;
                 OnPropertyChanged();
                 
-                // If storage access is disabled, remove the sync root
+                // If storage access is disabled, remove the sync root / mount
                 if (!value)
                 {
                     sftpFeature.Remove(Device.Id);
+                }
+                else
+                {
+                    // Prompt immediately on Mac if macFUSE/sshfs are missing
+                    _ = sftpFeature.EnsurePrerequisitesAsync();
                 }
             }
         }

@@ -125,6 +125,11 @@ public partial class App : Application
 
             await AppLifecycleHelper.InitializeAppComponentsAsync();
 
+#if !WINDOWS
+            if (OperatingSystem.IsMacOS())
+                _ = Platforms.Desktop.Services.MacOsPermissionsHelper.ShowTipsIfNeededAsync();
+#endif
+
             bool isOnboarding = ApplicationData.Current.LocalSettings.Values["HasCompletedOnboarding"] == null;
             if (isOnboarding)
             {
@@ -233,7 +238,7 @@ public partial class App : Application
             return;
 
         args.Handled = true;
-        MainWindow.AppWindow.Hide();
+        HideMainWindow();
     }
 
     public static void TrayStartScrcpy()
@@ -247,6 +252,20 @@ public partial class App : Application
     {
         MainWindow.DispatcherQueue.TryEnqueue(() =>
         {
+#if !WINDOWS
+            if (OperatingSystem.IsMacOS() &&
+                Platforms.Desktop.Services.MacOsNative.IsAvailable)
+            {
+                if (!Platforms.Desktop.Services.MacOsNative.IsAnyWindowVisible())
+                {
+                    ShowMainWindow();
+                    return;
+                }
+
+                HideMainWindow();
+                return;
+            }
+#endif
             var presenter = MainWindow.AppWindow.Presenter as OverlappedPresenter;
             var isMinimized = presenter?.State is OverlappedPresenterState.Minimized;
 
@@ -256,12 +275,16 @@ public partial class App : Application
                 return;
             }
 
-            MainWindow.AppWindow.Hide();
+            HideMainWindow();
         });
     }
 
     public static void ShowMainWindow()
     {
+#if !WINDOWS
+        if (OperatingSystem.IsMacOS() && Platforms.Desktop.Services.MacOsNative.IsAvailable)
+            Platforms.Desktop.Services.MacOsNative.ShowWindows();
+#endif
         var presenter = MainWindow.AppWindow.Presenter as OverlappedPresenter;
         if (presenter?.State is OverlappedPresenterState.Minimized)
             presenter.Restore();
@@ -271,6 +294,18 @@ public partial class App : Application
 #if WINDOWS
         InteropHelpers.SetForegroundWindow(WindowHandle);
 #endif
+    }
+
+    private static void HideMainWindow()
+    {
+#if !WINDOWS
+        if (OperatingSystem.IsMacOS() && Platforms.Desktop.Services.MacOsNative.IsAvailable)
+        {
+            Platforms.Desktop.Services.MacOsNative.HideWindows();
+            return;
+        }
+#endif
+        MainWindow.AppWindow.Hide();
     }
 
     public static void TrayExitApplication()

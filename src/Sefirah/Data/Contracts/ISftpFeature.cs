@@ -9,4 +9,9 @@ public interface ISftpFeature : IFeature
     void Remove(string deviceId);
 
     void RemoveAll();
+
+    /// <summary>
+    /// Prompts the user if platform prerequisites for storage access are missing (e.g. macFUSE/sshfs on macOS).
+    /// </summary>
+    Task EnsurePrerequisitesAsync();
 }

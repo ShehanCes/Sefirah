@@ -5,7 +5,6 @@ using Sefirah.Data.AppDatabase.Repository;
 using Sefirah.Data.Models;
 using Sefirah.Dialogs;
 using Sefirah.Utils;
-using Sefirah.Views.Settings;
 using Windows.ApplicationModel.DataTransfer;
 
 #if WINDOWS
@@ -53,7 +52,18 @@ public class ScreenMirrorService(
         var deviceSettings = device.DeviceSettings;
         try
         {
-            var scrcpyPath = userSettingsService.GeneralSettingsService.ScrcpyPath;
+            var scrcpyPath = ExternalToolLocator.ResolveScrcpyPath(userSettingsService.GeneralSettingsService.ScrcpyPath);
+            if (!string.IsNullOrEmpty(scrcpyPath) &&
+                scrcpyPath != userSettingsService.GeneralSettingsService.ScrcpyPath)
+            {
+                userSettingsService.GeneralSettingsService.ScrcpyPath = scrcpyPath;
+                ExternalToolLocator.TrySetAdbCompanion(scrcpyPath, p =>
+                {
+                    userSettingsService.GeneralSettingsService.AdbPath = p;
+                    _ = adbService.StartAsync();
+                });
+            }
+
             if (!File.Exists(scrcpyPath))
             {
                 logger.Error($"Scrcpy not found at {scrcpyPath}");
@@ -626,7 +636,7 @@ public class ScreenMirrorService(
         if (file?.Path is string path)
         {
             userSettingsService.GeneralSettingsService.ScrcpyPath = path;
-            GeneralPage.TrySetCompanionTool(path, "adb.exe", p => userSettingsService.GeneralSettingsService.AdbPath = p);
+            ExternalToolLocator.TrySetAdbCompanion(path, p => userSettingsService.GeneralSettingsService.AdbPath = p);
             await adbService.StartAsync();
             return path;
         }

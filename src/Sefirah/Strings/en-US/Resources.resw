@@ -283,6 +283,18 @@ page.</value>
   <data name="SelectLocation" xml:space="preserve">
     <value>Select location</value>
   </data>
+  <data name="FindAutomatically" xml:space="preserve">
+    <value>Find automatically</value>
+  </data>
+  <data name="AdbNotFound" xml:space="preserve">
+    <value>ADB not found</value>
+  </data>
+  <data name="AdbFindFailedDescription" xml:space="preserve">
+    <value>Could not find adb. Install Android platform-tools (e.g. brew install --cask android-platform-tools) or select the binary manually.</value>
+  </data>
+  <data name="ScrcpyFindFailedDescription" xml:space="preserve">
+    <value>Could not find scrcpy. Install it (e.g. brew install scrcpy) or select the binary manually.</value>
+  </data>
   <data name="RemoveDeviceDialogSubtitle" xml:space="preserve">
     <value>Are you sure you want to remove '{0}'? This action cannot be undone.</value>
   </data>
@@ -668,6 +680,65 @@ input text %pwd%</value>
   </data>
   <data name="StorageAccessDescription" xml:space="preserve">
     <value>Enables or disables storage access for this device in the File Explorer</value>
+  </data>
+  <data name="StorageAccessMac" xml:space="preserve">
+    <value>Show device in Finder</value>
+  </data>
+  <data name="StorageAccessDescriptionMac" xml:space="preserve">
+    <value>Enables or disables storage access for this device in Finder (requires macFUSE and sshfs)</value>
+  </data>
+  <data name="StorageAccessLinux" xml:space="preserve">
+    <value>Show device in Files</value>
+  </data>
+  <data name="StorageAccessDescriptionLinux" xml:space="preserve">
+    <value>Enables or disables storage access for this device in your file manager</value>
+  </data>
+  <data name="StorageAccessDepsMissingTitle" xml:space="preserve">
+    <value>Additional software required</value>
+  </data>
+  <data name="StorageAccessDepsMissingMacFuse" xml:space="preserve">
+    <value>To show this device in Finder, install macFUSE and sshfs, then reconnect:
+
+brew install --cask macfuse
+brew install gromgit/fuse/sshfs-mac
+
+After installing macFUSE, you may need to allow the system extension in System Settings and reboot.</value>
+  </data>
+  <data name="StorageAccessDepsMissingSshfs" xml:space="preserve">
+    <value>To show this device in Finder, install sshfs, then reconnect:
+
+brew install gromgit/fuse/sshfs-mac</value>
+  </data>
+  <data name="StorageAccessMountFailedTitle" xml:space="preserve">
+    <value>Finder mount failed</value>
+  </data>
+  <data name="StorageAccessMountFailed" xml:space="preserve">
+    <value>Could not mount "{0}" in Finder.
+
+{1}
+
+Check that macFUSE is allowed in System Settings → Privacy &amp; Security, then reconnect.</value>
+  </data>
+  <data name="MacPermissionsTitle" xml:space="preserve">
+    <value>macOS permissions</value>
+  </data>
+  <data name="MacPermissionsBody" xml:space="preserve">
+    <value>For the best experience, allow these when macOS asks (or enable them in System Settings → Privacy &amp; Security):
+
+• Local Network — find and connect to your phone
+• Notifications — show Android alerts on your Mac
+• Automation (System Events) — lock / sleep / login item actions
+
+Storage in Finder also needs macFUSE + sshfs (you’ll be prompted if missing).</value>
+  </data>
+  <data name="MacPermissionsOpenSettings" xml:space="preserve">
+    <value>Open Privacy settings</value>
+  </data>
+  <data name="MacPermissionsContinue" xml:space="preserve">
+    <value>Continue</value>
+  </data>
+  <data name="CopyInstallCommands" xml:space="preserve">
+    <value>Copy install commands</value>
   </data>
   <data name="AudioSilent" xml:space="preserve">
     <value>Silent</value>

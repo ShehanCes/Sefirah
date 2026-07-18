@@ -36,10 +36,8 @@ public static class AppLifecycleHelper
         var adbService = Ioc.Default.GetRequiredService<IAdbService>();
         var updateService = Ioc.Default.GetRequiredService<IUpdateService>();
         var phoneLineService = Ioc.Default.GetRequiredService<IPhoneLineService>();
-#if WINDOWS
         var notificationHandler = Ioc.Default.GetRequiredService<IPlatformNotificationHandler>();
         await notificationHandler.RegisterForNotifications();
-#endif
 
         await deviceManager.Initialize();
 
@@ -171,6 +169,10 @@ public static class AppLifecycleHelper
             if (startupTask.State is StartupTaskState.Enabled)
                 startupTask.Disable();
         }
+#else
+        if (OperatingSystem.IsMacOS())
+            Platforms.Desktop.Services.MacOsLoginItem.SetEnabled(enable);
+        await Task.CompletedTask;
 #endif
     }
 }

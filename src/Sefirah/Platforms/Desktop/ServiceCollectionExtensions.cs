@@ -11,7 +11,11 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddPlatformServices(this IServiceCollection services)
     {
-        services.AddSingleton<IPlatformNotificationHandler, NotificationHandler>();
+        if (OperatingSystem.IsMacOS())
+            services.AddSingleton<IPlatformNotificationHandler, MacOsNotificationHandler>();
+        else
+            services.AddSingleton<IPlatformNotificationHandler, NotificationHandler>();
+
         services.AddFeature<IMediaFeature, MediaFeature>();
         services.AddFeature<IBatteryFeature, BatteryFeature>();
         services.AddFeature<ISftpFeature, SftpFeature>();
